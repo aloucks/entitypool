@@ -1,0 +1,11 @@
+[package]
+name = "entitypool"
+version = "0.1.0"
+authors = ["Aaron Loucks <aloucks+github@cofront.net>"]
+license = "MIT"
+description = "A simple, cache-friendly, entity generator"
+repository = "https://github.com/aloucks/entitypool"
+homepage = "https://github.com/aloucks/entitypool"
+documentation = ""
+keywords = ["entity", "pool", "ecs", "component", "system", "index", "map"]
+readme = "README.md"
