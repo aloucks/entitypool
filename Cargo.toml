@@ -1,6 +1,6 @@
 [package]
 name = "entitypool"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Aaron Loucks <aloucks+github@cofront.net>"]
 license = "MIT"
 description = "A simple, cache-friendly, entity generator"
