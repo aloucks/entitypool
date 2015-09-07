@@ -27,9 +27,9 @@ use std::fmt::{self, Debug};
 use std::ops::Index;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub struct Entity(usize);
+pub struct Entity(u64);
 
-const INVALID_ID: usize = std::usize::MAX;
+const INVALID_ID: u64 = std::u64::MAX;
 const INVALID_INDEX: u32 = std::u32::MAX;
 
 impl Default for Entity {
@@ -48,43 +48,24 @@ impl Debug for Entity {
 impl Hash for Entity {
     #[inline(always)]
     fn hash<H>(&self, state: &mut H) where H: Hasher {
-        state.write_usize(self.0)
+        state.write_u64(self.0)
     }
 }
 
-#[cfg(target_pointer_width="64")]
 impl Entity {
     #[inline(always)]
-    fn from_key_and_gen(key: usize, gen: usize) -> Entity {
-        Entity((key<<32) | gen)
+    fn from_key_and_gen(key: u32, gen: u32) -> Entity {
+        Entity(((key as u64) << 32) | (gen as u64))
     }
 
     #[inline(always)]
-    fn key(&self) -> usize {
-        self.0 >> 32
+    fn key(&self) -> u32 {
+        (self.0 >> 32) as u32
     }
 
     #[inline(always)]
-    fn gen(&self) -> usize {
-        self.0 & 0xFFFFFFFF
-    }
-}
-
-#[cfg(target_pointer_width="32")]
-impl Entity {
-    #[inline(always)]
-    fn from_key_and_gen(key: usize, gen: usize) -> Entity {
-        Entity((key<<18) | gen)
-    }
-
-    #[inline(always)]
-    fn key(&self) -> usize {
-        self.0 >> 14
-    }
-
-    #[inline(always)]
-    fn gen(&self) -> usize {
-        self.0 & 0x3FFF
+    fn gen(&self) -> u32 {
+        (self.0 & 0xFFFFFFFF) as u32
     }
 }
 
@@ -93,7 +74,7 @@ pub struct EntityPool {
     entities: Vec<Entity>,
     entities_free: Vec<Entity>,
     entity_index: Vec<u32>, // entity_index[entity.key] => index; entities[index as usize]
-    next_entity_key: usize,
+    next_entity_key: u32,
 }
 
 impl Default for EntityPool {
@@ -145,11 +126,11 @@ impl EntityPool {
         let entity = Entity::from_key_and_gen(key, gen);
         let index = self.entities.len() as u32;
         self.entities.push(entity);
-        if key != self.entity_index.len() {
-            self.entity_index[key] = index;
+        if key as usize != self.entity_index.len() {
+            self.entity_index[key as usize] = index;
         }
         else {
-            debug_assert_eq!(key, self.entity_index.len());
+            debug_assert_eq!(key as usize, self.entity_index.len());
             self.entity_index.push(index);
         }
         (index as usize, entity)
@@ -199,13 +180,13 @@ impl EntityPool {
     pub fn return_entity(&mut self, entity: Entity) {
         debug_assert!(entity != Entity::default());
         let key = entity.key();
-        let index = self.entity_index[key];
+        let index = self.entity_index[key as usize];
         debug_assert_eq!(entity.gen(), self.entities[index as usize].gen());
         self.entities_free.push(entity);
         self.entities.swap_remove(index as usize);
-        self.entity_index[key] = INVALID_INDEX;
+        self.entity_index[key as usize] = INVALID_INDEX;
         match self.entities.get(index as usize) {
-            Some(e) => self.entity_index[e.key()] = index,
+            Some(e) => self.entity_index[e.key() as usize] = index,
             None    => {}
         };
     }
@@ -220,7 +201,7 @@ impl EntityPool {
     pub fn index_of(&self, entity: Entity) -> usize {
         debug_assert!(entity != Entity::default());
         let key = entity.key();
-        let index = self.entity_index[key] as usize;
+        let index = self.entity_index[key as usize] as usize;
         debug_assert_eq!(entity.gen(), self.entities[index as usize].gen());
         index
     }
@@ -243,7 +224,7 @@ impl EntityPool {
     pub fn is_alive(&self, entity: Entity) -> bool {
         debug_assert!(entity != Entity::default());
         let key = entity.key();
-        let index = self.entity_index[key];
+        let index = self.entity_index[key as usize];
         if index != INVALID_INDEX {
             let other = self.entities[index as usize];
             key == other.key() && entity.gen() == other.gen()
@@ -346,7 +327,7 @@ impl Index<Entity> for EntityPool {
     /// Returns the index of the given `entity`.
     #[inline(always)]
     fn index(&self, entity: Entity) -> &u32 {
-        &self.entity_index[entity.key()]
+        &self.entity_index[entity.key() as usize]
     }
 }
 
