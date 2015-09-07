@@ -30,7 +30,7 @@ use std::ops::Index;
 pub struct Entity(u64);
 
 const INVALID_ID: u64 = std::u64::MAX;
-const INVALID_INDEX: u32 = std::u32::MAX;
+const INVALID_INDEX: usize = std::u32::MAX as usize;
 
 impl Default for Entity {
     #[inline(always)]
@@ -73,7 +73,7 @@ impl Entity {
 pub struct EntityPool {
     entities: Vec<Entity>,
     entities_free: Vec<Entity>,
-    entity_index: Vec<u32>, // entity_index[entity.key] => index; entities[index as usize]
+    entity_index: Vec<usize>, // entity_index[entity.key] => index; entities[index as usize]
     next_entity_key: u32,
 }
 
@@ -124,7 +124,7 @@ impl EntityPool {
             }
         };
         let entity = Entity::from_key_and_gen(key, gen);
-        let index = self.entities.len() as u32;
+        let index = self.entities.len();
         self.entities.push(entity);
         if key as usize != self.entity_index.len() {
             self.entity_index[key as usize] = index;
@@ -133,7 +133,7 @@ impl EntityPool {
             debug_assert_eq!(key as usize, self.entity_index.len());
             self.entity_index.push(index);
         }
-        (index as usize, entity)
+        (index, entity)
     }
 
     /// Release ownership of the `entity`, allowing for it to be recycled. A recycled entity will
@@ -181,11 +181,11 @@ impl EntityPool {
         debug_assert!(entity != Entity::default());
         let key = entity.key();
         let index = self.entity_index[key as usize];
-        debug_assert_eq!(entity.gen(), self.entities[index as usize].gen());
+        debug_assert_eq!(entity.gen(), self.entities[index].gen());
         self.entities_free.push(entity);
-        self.entities.swap_remove(index as usize);
+        self.entities.swap_remove(index);
         self.entity_index[key as usize] = INVALID_INDEX;
-        match self.entities.get(index as usize) {
+        match self.entities.get(index) {
             Some(e) => self.entity_index[e.key() as usize] = index,
             None    => {}
         };
@@ -202,7 +202,7 @@ impl EntityPool {
         debug_assert!(entity != Entity::default());
         let key = entity.key();
         let index = self.entity_index[key as usize] as usize;
-        debug_assert_eq!(entity.gen(), self.entities[index as usize].gen());
+        debug_assert_eq!(entity.gen(), self.entities[index].gen());
         index
     }
 
@@ -226,7 +226,7 @@ impl EntityPool {
         let key = entity.key();
         let index = self.entity_index[key as usize];
         if index != INVALID_INDEX {
-            let other = self.entities[index as usize];
+            let other = self.entities[index];
             key == other.key() && entity.gen() == other.gen()
         }
         else {
@@ -313,21 +313,39 @@ impl EntityPool {
     }
 }
 
-impl Index<u32> for EntityPool {
+impl Index<usize> for EntityPool {
     type Output = Entity;
     /// Returns the `entity` at the given `index`.
     #[inline(always)]
-    fn index(&self, index: u32) -> &Entity {
-        &self.entities[index as usize]
+    fn index(&self, index: usize) -> &Entity {
+        &self.entities[index]
     }
 }
 
 impl Index<Entity> for EntityPool {
-    type Output = u32;
+    type Output = usize;
     /// Returns the index of the given `entity`.
     #[inline(always)]
-    fn index(&self, entity: Entity) -> &u32 {
+    fn index(&self, entity: Entity) -> &usize {
         &self.entity_index[entity.key() as usize]
+    }
+}
+
+impl<'a> Index<&'a Entity> for EntityPool {
+    type Output = usize;
+    /// Returns the index of the given `entity`.
+    #[inline(always)]
+    fn index(&self, entity: &Entity) -> &usize {
+        &self.entity_index[entity.key() as usize]
+    }
+}
+
+impl<'a> Index<&'a usize> for EntityPool {
+    type Output = Entity;
+    /// Returns the `entity` at the given `index`.
+    #[inline(always)]
+    fn index(&self, index: &usize) -> &Entity {
+        &self.entities[*index]
     }
 }
 
@@ -339,9 +357,9 @@ fn it_works() {
         let (index, e) = pool.create_entity();
         assert_eq!(i, index);
         assert_eq!(e, pool.entity_at(index));
-        assert_eq!(e, pool[i as u32]);
+        assert_eq!(e, pool[i]);
         assert_eq!(index, pool.index_of(e));
-        assert_eq!(index as u32, pool[e]);
+        assert_eq!(index, pool[e]);
         assert!(!entities.contains(&e));
         assert!(pool.is_alive(e));
         entities.push(e);
@@ -355,9 +373,11 @@ fn it_works() {
         for (i_alive, e_alive) in pool.iter().enumerate() {
             assert!(pool.is_alive(*e_alive));
             assert_eq!(i_alive, pool.index_of(*e_alive));
-            assert_eq!(i_alive as u32, pool[*e_alive]);
+            assert_eq!(i_alive, pool[*e_alive]);
+            assert_eq!(i_alive, pool[e_alive]);
             assert_eq!(*e_alive, pool.entity_at(i_alive));
-            assert_eq!(*e_alive, pool[i_alive as u32]);
+            assert_eq!(*e_alive, pool[i_alive]);
+            assert_eq!(*e_alive, pool[&i_alive]);
             expected_alive += 1;
         }
         assert_eq!(expected_alive, alive);
@@ -366,9 +386,9 @@ fn it_works() {
         let (index, e) = pool.create_entity();
         assert_eq!(i, index);
         assert_eq!(e, pool.entity_at(index));
-        assert_eq!(e, pool[i as u32]);
+        assert_eq!(e, pool[i]);
         assert_eq!(index, pool.index_of(e));
-        assert_eq!(index as u32, pool[e]);
+        assert_eq!(index, pool[e]);
         assert!(!entities.contains(&e));
         assert!(pool.is_alive(e));
         entities.push(e);
@@ -376,9 +396,9 @@ fn it_works() {
     let mut count = 0;
     for (index, e) in pool.iter().enumerate() {
         assert_eq!(index, pool.index_of(*e));
-        assert_eq!(index as u32, pool[*e]);
+        assert_eq!(index, pool[e]);
         assert_eq!(*e, pool.entity_at(index));
-        assert_eq!(*e, pool[index as u32]);
+        assert_eq!(*e, pool[index]);
         assert!(pool.is_alive(*e));
         count += 1;
     }
