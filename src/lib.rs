@@ -59,12 +59,17 @@ impl Entity {
     }
 
     #[inline(always)]
-    fn key(&self) -> u32 {
+    pub fn id(&self) -> u64 {
+        self.0
+    }
+
+    #[inline(always)]
+    pub fn key(&self) -> u32 {
         (self.0 >> 32) as u32
     }
 
     #[inline(always)]
-    fn gen(&self) -> u32 {
+    pub fn gen(&self) -> u32 {
         (self.0 & 0xFFFFFFFF) as u32
     }
 }
