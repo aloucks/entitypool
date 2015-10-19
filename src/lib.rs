@@ -186,6 +186,8 @@ impl EntityPool {
         debug_assert!(entity != Entity::default());
         let key = entity.key();
         let index = self.entity_index[key as usize];
+        debug_assert!(index != INVALID_INDEX, format!("Invalid or previously freed entity: {:?}",
+                                                      entity));
         debug_assert_eq!(entity.gen(), self.entities[index].gen());
         self.entities_free.push(entity);
         self.entities.swap_remove(index);
@@ -207,6 +209,8 @@ impl EntityPool {
         debug_assert!(entity != Entity::default());
         let key = entity.key();
         let index = self.entity_index[key as usize] as usize;
+        debug_assert!(index != INVALID_INDEX, format!("Invalid or previously freed entity: {:?}",
+                                                      entity));
         debug_assert_eq!(entity.gen(), self.entities[index].gen());
         index
     }
@@ -332,7 +336,10 @@ impl Index<Entity> for EntityPool {
     /// Returns the index of the given `entity`.
     #[inline(always)]
     fn index(&self, entity: Entity) -> &usize {
-        &self.entity_index[entity.key() as usize]
+        let index = &self.entity_index[entity.key() as usize];
+        debug_assert!(*index != INVALID_INDEX, format!("Invalid or previously freed entity: {:?}",
+                                                       entity));
+        index
     }
 }
 
@@ -341,7 +348,10 @@ impl<'a> Index<&'a Entity> for EntityPool {
     /// Returns the index of the given `entity`.
     #[inline(always)]
     fn index(&self, entity: &Entity) -> &usize {
-        &self.entity_index[entity.key() as usize]
+        let index = &self.entity_index[entity.key() as usize];
+        debug_assert!(*index != INVALID_INDEX, format!("Invalid or previously freed entity: {:?}",
+                                                       entity));
+        index
     }
 }
 
