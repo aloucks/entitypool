@@ -343,6 +343,15 @@ impl Index<Entity> for EntityPool {
     }
 }
 
+impl<'a> Index<&'a usize> for EntityPool {
+    type Output = Entity;
+    /// Returns the `entity` at the given `index`.
+    #[inline(always)]
+    fn index(&self, index: &usize) -> &Entity {
+        &self.entities[*index]
+    }
+}
+
 impl<'a> Index<&'a Entity> for EntityPool {
     type Output = usize;
     /// Returns the index of the given `entity`.
@@ -352,15 +361,6 @@ impl<'a> Index<&'a Entity> for EntityPool {
         debug_assert!(*index != INVALID_INDEX, format!("Invalid or previously freed entity: {:?}",
                                                        entity));
         index
-    }
-}
-
-impl<'a> Index<&'a usize> for EntityPool {
-    type Output = Entity;
-    /// Returns the `entity` at the given `index`.
-    #[inline(always)]
-    fn index(&self, index: &usize) -> &Entity {
-        &self.entities[*index]
     }
 }
 
